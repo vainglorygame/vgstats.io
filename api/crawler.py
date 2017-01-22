@@ -1,10 +1,12 @@
 #!/usr/bin/python
 
-import requests
+import asyncio
 import datetime
+import aiohttp
 
 TOKEN = "aaa.bbb.ccc"
 APIURL = "https://api.dc01.gamelockerapp.com/"
+
 
 class Crawler(object):
     def __init__(self):
@@ -14,9 +16,11 @@ class Crawler(object):
         self._lastquery = datetime.datetime(1, 1, 1)
         self._pagelimit = 50
 
-    def _req(self, path, params=None):
+    async def _req(self, session, path, params=None):
         """Sends an API request and returns the response dict.
 
+        :param session: aiohttp client session.
+        :type session: :class:`aiohttp.ClientSession`
         :param path: URL path.
         :type path: str
         :param params: (optional) Request parameters.
@@ -30,12 +34,13 @@ class Crawler(object):
             "Accept": "application/vnd.api+json",
             "Content-Encoding": "gzip"
         }
-        http = requests.get(self._apiurl + path, headers=headers,
-                            params=params)
-        http.raise_for_status()
-        return http.json()
+        async with session.get(self._apiurl + path, headers=headers,
+                               params=params) as response:
+            if response.status != 200:
+                return None
+            return await response.json()
 
-    def matches(self, region="na", params=None):
+    async def matches(self, region="na", params=None):
         """Queries the API for matches and their related data.
 
         :param region: (optional) Region where the matches were played.
@@ -48,20 +53,32 @@ class Crawler(object):
         """
         if params is None:
             params = dict()
-        resp = []
         params["page[limit]"] = self._pagelimit
         params["page[offset]"] = 0
-        while True:
-            # go one page forward until 404
-            try:
-                json = self._req("shards/" + region + "/matches", params)
-            except requests.exceptions.HTTPError:
-                break
-            resp += json["data"] + json["included"]
-            params["page[offset]"] += params["page[limit]"]
-        return resp
+        batchsize = 100  # FIXME We don't know how long we can paginate
 
-    def matches_new(self, region="na"):
+        tasks = []
+        data = []
+        # fire a lot of http requests
+        async with aiohttp.ClientSession() as session:
+            for _ in range(0, batchsize):
+                params["page[offset]"] += params["page[limit]"]
+                task = asyncio.ensure_future(
+                    self._req(
+                        session,
+                        "shards/" + region + "/matches",
+                        params))
+                tasks.append(task)
+
+            results = await asyncio.gather(*tasks)
+            for res in results:
+                if res is None:
+                    continue
+                data += res["data"] + res["included"]
+
+        return data
+
+    async def matches_new(self, region="na"):
         """Queries the API for new matches since the last query.
 
         :param region: see `matches`

@@ -1,77 +1,85 @@
 #!/usr/bin/python
 
-import psycopg2
-import psycopg2.extras
+import asyncio
+import json
+import asyncpg
+
 
 class Database(object):
     """Database wrapper class"""
-    def __init__(self, connstring):
+    def __init__(self):
+        self._pool = None
+
+    async def connect(self, connstring):
         """Connects to the database.
 
         :param connstring: Connection string containing user and database.
         :type connstring: str
         """
-        self._connection = psycopg2.connect(connstring)
-        self._c = self._connection.cursor()
+        self._pool = await asyncpg.create_pool(connstring)
 
-    def upsert_type(self, shard, json, objtype, many=False):
+    async def upsert_type(self, shard, obj, objtype, many=False):
         """Upserts an object of given `objtype` into the corresponding database.
 
         :param shard: Region in which an object's id is unique.
         :type shard: str
-        :param json: Object to upsert.
-        :type json: dict
+        :param obj: Object to upsert.
+        :type obj: dict or list
         :param objtype: Object type and table name.
         :type objtype: str
-        :param many: (optional) Whether `json` is an array
+        :param many: (optional) Whether `obj` is a list
                      of objects of the same objtype.
         :type many: bool
         """
         if not many:
-            json = [json]
+            obj = [obj]
 
-        arr = [{
-            "id": shard + j["id"],
-            "data": psycopg2.extras.Json(j)
-        } for j in json]
+        arr = [[
+            shard + j["id"],
+            json.dumps(j)
+        ] for j in obj]
 
-        self._c.execute("CREATE TABLE IF NOT EXISTS " + objtype +
-                        " (id TEXT PRIMARY KEY, data json)")
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute("CREATE TABLE IF NOT EXISTS " + objtype +
+                                   " (id TEXT PRIMARY KEY, data json)")
+                await conn.executemany("INSERT INTO " + objtype + " " +
+                                       "VALUES ($1, $2) " +
+                                       "ON CONFLICT (id) DO " +
+                                       "UPDATE SET data=$2",
+                                       arr)
 
-        self._c.executemany("INSERT INTO " + objtype + " " +
-                            "VALUES (%(id)s, %(data)s) " +
-                            "ON CONFLICT (id) DO " +
-                            "UPDATE SET data=%(data)s",
-                            arr)
-        self._connection.commit()
-
-    def upsert(self, shard, json, many=False):
+    async def upsert(self, shard, obj, many=False):
         """Upserts an object into the corresponding database.
 
         :param shard: Region in which an object's id is unique.
         :type shard: str
-        :param json: Object to upsert.
-        :type json: dict
-        :param many: (optional) Whether `json` is an array
+        :param obj: Object to upsert.
+        :type obj: dict
+        :param many: (optional) Whether `obj` is a list
                      of objects.
         :type many: bool
         """
         if not many:
-            json = [json]
+            obj = [obj]
         objectmap = dict()
 
         # figure out the type of each object and sort into map
-        for j in json:
+        for j in obj:
             objtype = j["type"]
             if objtype not in objectmap:
                 objectmap[objtype] = []
             objectmap[objtype].append(j)
 
         # execute bulk upsert for each type
+        tasks = []
         for objtype, objects in objectmap.items():
-            self.upsert_type(shard, objects, objtype, True)
+            task = asyncio.ensure_future(
+                self.upsert_type(shard, objects, objtype, True))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
 
-    def select(self, query):
+    async def select(self, query):
         """Returns the result of an SQL query.
 
         :param query: SQL query to execute.
@@ -79,5 +87,6 @@ class Database(object):
         :return: List of results.
         :rtype: list of dict
         """
-        self._c.execute(query)
-        return self._c.fetchall()
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                return await conn.fetch(query)
