@@ -105,7 +105,7 @@ class Database(object):
                                               "WHERE key='" + key + "'")
                     if len(result) == 0:
                         raise KeyError
-                    return result[0]["value"]
+                    return json.loads(result[0]["value"])
 
     async def execute(self, query, args):
         """Runs an SQL statement.

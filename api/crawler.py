@@ -78,4 +78,6 @@ class Crawler(object):
         :return: Processed API response
         :rtype: list of dict
         """
+        date = ".".join(date.split(".")[:-1])  # remove microseconds
+        date = date + "Z"
         return await self.matches(region, {"filter[createdAt-start]": date})
