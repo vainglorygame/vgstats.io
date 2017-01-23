@@ -42,7 +42,7 @@ class Database(object):
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute("CREATE TABLE IF NOT EXISTS " + objtype +
-                                   " (id TEXT PRIMARY KEY, data json)")
+                                   " (id TEXT PRIMARY KEY, data jsonb)")
                 await conn.executemany("INSERT INTO " + objtype + " " +
                                        "VALUES ($1, $2) " +
                                        "ON CONFLICT (id) DO " +
@@ -92,7 +92,7 @@ class Database(object):
         async with self._pool.acquire() as conn:
             async with conn.transaction():
                 await conn.execute("CREATE TABLE IF NOT EXISTS meta " +
-                                   "(key TEXT PRIMARY KEY, value json)")
+                                   "(key TEXT PRIMARY KEY, value jsonb)")
                 if value is not None:
                     value = json.dumps(value)
                     await conn.execute("INSERT INTO meta(key, value) " +
