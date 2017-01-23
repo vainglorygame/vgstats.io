@@ -79,6 +79,46 @@ class Database(object):
             tasks.append(task)
         await asyncio.gather(*tasks)
 
+    async def meta(self, key, value=None):
+        """Sets or gets data into a dictionary-like database object.
+
+        :param key: ID of the value.
+        :type key: str
+        :param value: (optional) Value to set.
+        :type value: object
+        :return: If `value` is None, the value the database entry.
+        :rtype: object
+        """
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute("CREATE TABLE IF NOT EXISTS meta " +
+                                   "(key TEXT PRIMARY KEY, value json)")
+                if value is not None:
+                    value = json.dumps(value)
+                    await conn.execute("INSERT INTO meta(key, value) " +
+                                       "VALUES ($1, $2) " +
+                                       "ON CONFLICT (key) DO " +
+                                       "UPDATE SET value=$2",
+                                       key, value)
+                else:
+                    result = await conn.fetch("SELECT value FROM meta " +
+                                              "WHERE key='" + key + "'")
+                    if len(result) == 0:
+                        raise KeyError
+                    return result[0]["value"]
+
+    async def execute(self, query, args):
+        """Runs an SQL statement.
+
+        :param query: SQL query to execute.
+        :type query: str
+        :param args: Query arguments.
+        :type args: list of objects
+        """
+        async with self._pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(query, args)
+
     async def select(self, query):
         """Returns the result of an SQL query.
 

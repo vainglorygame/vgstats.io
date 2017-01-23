@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import asyncio
-import datetime
 import aiohttp
 
 TOKEN = "aaa.bbb.ccc"
@@ -13,7 +12,6 @@ class Crawler(object):
         """Sets constants."""
         self._apiurl = APIURL
         self._token = TOKEN
-        self._lastquery = datetime.datetime(1, 1, 1)
         self._pagelimit = 50
 
     async def _req(self, session, path, params=None):
@@ -36,8 +34,7 @@ class Crawler(object):
         }
         async with session.get(self._apiurl + path, headers=headers,
                                params=params) as response:
-            if response.status != 200:
-                return None
+            assert response.status == 200
             return await response.json()
 
     async def matches(self, region="na", params=None):
@@ -55,35 +52,30 @@ class Crawler(object):
             params = dict()
         params["page[limit]"] = self._pagelimit
         params["page[offset]"] = 0
-        batchsize = 100  # FIXME We don't know how long we can paginate
 
-        tasks = []
         data = []
-        # fire a lot of http requests
         async with aiohttp.ClientSession() as session:
-            for _ in range(0, batchsize):
+            while True:
                 params["page[offset]"] += params["page[limit]"]
-                task = asyncio.ensure_future(
-                    self._req(
-                        session,
-                        "shards/" + region + "/matches",
-                        params))
-                tasks.append(task)
+                try:
+                    res = await self._req(session,
+                                          "shards/" + region + "/matches",
+                                          params)
+                except AssertionError:
+                    break
 
-            results = await asyncio.gather(*tasks)
-            for res in results:
-                if res is None:
-                    continue
                 data += res["data"] + res["included"]
 
         return data
 
-    async def matches_new(self, region="na"):
-        """Queries the API for new matches since the last query.
+    async def matches_since(self, date, region="na"):
+        """Queries the API for new matches since the given date.
 
         :param region: see `matches`
         :type region: str
+        :param date: Start date in ISO8601 format.
+        :type date: str
+        :return: Processed API response
+        :rtype: list of dict
         """
-        lastdate = self._lastquery.replace(microsecond=0).isoformat() + "Z"
-        self._lastquery = datetime.datetime.now()
-        return self.matches(region, {"filter[createdAt-start]": lastdate})
+        return await self.matches(region, {"filter[createdAt-start]": date})
