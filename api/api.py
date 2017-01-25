@@ -1,12 +1,28 @@
 #!/usr/bin/python
 
+import datetime
 import asyncio
+import socket
+import sys
+import json
+import aiohttp.web
+import aiohttp_route_decorator
+
 import database
 import crawler
-import datetime
+
+import uwsgi  # only available inside uwsgi
+from uwsgidecorators import *
 
 
-async def main():
+route = aiohttp_route_decorator.RouteCollector()
+
+
+@timer(60, target="spooler")  # every minute
+# FIXME: not working because of worker override
+async def recrawl():
+    print("getting recent matches")
+
     db = database.Database()
     await db.connect("postgres://vgstats@localhost/vgstats")
     api = crawler.Crawler()
@@ -15,14 +31,34 @@ async def main():
     except KeyError:
         last_match_update = datetime.datetime(1, 1, 1).isoformat()
         await db.meta("last_match_update", last_match_update)
-    print("getting new matches since " + last_match_update)
     await db.meta("last_match_update", datetime.datetime.now().isoformat())
     matches = await api.matches_since(last_match_update)
-    print("inserting data into database")
     await db.upsert("na", matches, True)
-    print("calculating stats")
+
+
+async def matches(request):
     print(await db.select("SELECT data->'attributes'->>'name' as name FROM player WHERE CAST(data->'attributes'->'stats'->>'winStreak' AS integer) > 3"))
+    return
+
+@route("/status")
+async def status(request):
+    resp = json.dumps({"version": "0.1.0"})
+    uwsgi.signal(17)
+    return aiohttp.web.Response(text=resp)
+
+async def init_uwsgi(loop, fd):
+    app = aiohttp.web.Application(loop=loop)
+    route.add_to_router(app.router)
+    srv = await loop.create_server(app.make_handler(),
+                                   sock=socket.fromfd(fd,
+                                                      socket.AF_INET,
+                                                      socket.SOCK_STREAM))
+    print("asyncio server started on uWSGI {0}".format(uwsgi.version))
+    return srv
+
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+for fd in uwsgi.sockets:
+    loop.run_until_complete(init_uwsgi(loop, fd))
+uwsgi.accepting()
+loop.run_forever()
