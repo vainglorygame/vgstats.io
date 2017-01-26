@@ -1,28 +1,67 @@
 #!/usr/bin/python
 
+import datetime
 import asyncio
+import socket
+import sys
+import json
+import aiohttp.web
+import aiohttp_route_decorator
+import aiohttp_wsgi
+
 import database
 import crawler
-import datetime
+import queries
 
 
-async def main():
-    db = database.Database()
-    await db.connect("postgres://vgstats@localhost/vgstats")
+route = aiohttp_route_decorator.RouteCollector()
+db = database.Database()
+
+
+async def recrawl():
+    """Gets the latest matches and inserts them into the database."""
+    print("getting recent matches")
     api = crawler.Crawler()
+
+    # TODO: insert API version (force update if changed)
+    # get or put when the last crawl was executed
     try:
         last_match_update = await db.meta("last_match_update")
     except KeyError:
         last_match_update = datetime.datetime(1, 1, 1).isoformat()
         await db.meta("last_match_update", last_match_update)
-    print("getting new matches since " + last_match_update)
-    await db.meta("last_match_update", datetime.datetime.now().isoformat())
+    nowiso = datetime.datetime.now().isoformat()
+
+    # crawl and upsert
     matches = await api.matches_since(last_match_update)
-    print("inserting data into database")
-    await db.upsert("na", matches, True)
-    print("calculating stats")
-    print(await db.select("SELECT data->'attributes'->>'name' as name FROM player WHERE CAST(data->'attributes'->'stats'->>'winStreak' AS integer) > 3"))
+    if len(matches) > 0:
+        print("got a lot new data items: " + str(len(matches)))
+    await db.upsert(matches, True)
+    await db.meta("last_match_update", nowiso)
+
+    asyncio.ensure_future(recrawl_soon())
+
+async def recrawl_soon():
+    """Calls `recrawl` after 60 seconds."""
+    print("crawler sleeping, Zzzzzz…")
+    await asyncio.sleep(60)
+    asyncio.ensure_future(recrawl())
+
+
+@route("/matches")
+async def api_matches(request):
+    data = (await db.select(queries.matches))[0]["data"]
+    return aiohttp.web.Response(text=str(data))
+
+@route("/status")
+async def api_status(_):
+    resp = json.dumps({"version": "0.1.0"})
+    return aiohttp.web.Response(text=resp)
+
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+loop.run_until_complete(db.connect("postgres://vgstats@localhost/vgstats"))
+loop.create_task(recrawl())
+app = aiohttp.web.Application(loop=loop)
+route.add_to_router(app.router)
+aiohttp.web.run_app(app)

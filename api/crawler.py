@@ -37,6 +37,13 @@ class Crawler(object):
             assert response.status == 200
             return await response.json()
 
+    async def version(self):
+        """Returns the current API version."""
+
+        async with aiohttp.ClientSession() as session:
+            status = await self._req(session, "status")
+            return status["data"]["attributes"]["version"]
+
     async def matches(self, region="na", params=None):
         """Queries the API for matches and their related data.
 
