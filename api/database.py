@@ -18,11 +18,9 @@ class Database(object):
         """
         self._pool = await asyncpg.create_pool(connstring)
 
-    async def upsert_type(self, shard, obj, objtype, many=False):
+    async def upsert_type(self, obj, objtype, many=False):
         """Upserts an object of given `objtype` into the corresponding database.
 
-        :param shard: Region in which an object's id is unique.
-        :type shard: str
         :param obj: Object to upsert.
         :type obj: dict or list
         :param objtype: Object type and table name.
@@ -35,7 +33,7 @@ class Database(object):
             obj = [obj]
 
         arr = [[
-            shard + j["id"],
+            (j["attributes"].get("shardId") or "") + j["id"],
             json.dumps(j)
         ] for j in obj]
 
@@ -49,11 +47,9 @@ class Database(object):
                                        "UPDATE SET data=$2",
                                        arr)
 
-    async def upsert(self, shard, obj, many=False):
+    async def upsert(self, obj, many=False):
         """Upserts an object into the corresponding database.
 
-        :param shard: Region in which an object's id is unique.
-        :type shard: str
         :param obj: Object to upsert.
         :type obj: dict
         :param many: (optional) Whether `obj` is a list
@@ -75,7 +71,7 @@ class Database(object):
         tasks = []
         for objtype, objects in objectmap.items():
             task = asyncio.ensure_future(
-                self.upsert_type(shard, objects, objtype, True))
+                self.upsert_type(objects, objtype, True))
             tasks.append(task)
         await asyncio.gather(*tasks)
 
