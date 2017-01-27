@@ -1,44 +1,20 @@
 #!/usr/bin/python
+import asyncio
+import glob
+import os
+import asyncpg
 
-# TODO: read this from sql files
-# TODO: index
+queries = dict()
 
-create_index = """
-CREATE INDEX ON match((data->>'id'));
-CREATE INDEX ON roster((data->>'id'));
-CREATE INDEX ON participant((data->>'id'));
-CREATE INDEX ON match((data->'attributes'->>'createdAt'));
-"""
+async def load_queries(path):
+    """Prepares a folder of SQL files as SQL statements.
 
-matches = """
-SELECT ARRAY_TO_JSON(ARRAY(
-SELECT
-  JSONB_BUILD_OBJECT(
-  'id', match.data->>'id',
-  'date', match.data->'attributes'->>'createdAt',
-  'duration', CAST(
-    match.data->'attributes'->>'duration'
-    AS INTEGER),
-  'teams', ARRAY(
-    SELECT(
-      SELECT
-      JSONB_BUILD_OBJECT(
-      'id', roster.data->>'id',
-      'side', roster.data->'attributes'->'stats'->>'side',
-      'kills', roster.data->'attributes'->'stats'->>'heroKills',
-      'players', ARRAY(
-        SELECT(
-          SELECT
-            participant.data->'attributes'->>'actor'
-          FROM participant WHERE relparticipant->>'id' = participant.data->>'id')
-        FROM JSONB_ARRAY_ELEMENTS(roster.data->'relationships'->'participants'->'data') relparticipant
-      )
-      )
-      FROM roster WHERE relroster->>'id' = roster.data->>'id')
-    FROM JSONB_ARRAY_ELEMENTS(match.data->'relationships'->'rosters'->'data') relroster
-  )
-)
-FROM match
-ORDER BY match.data->'attributes'->>'createdAt' DESC
-)) AS data
-"""
+    :param path: Path to the `.sql` files.
+    :type path: str
+    """
+    # load from queries/
+    queryfiles = glob.glob(path + "/*.sql")
+    for fp in queryfiles:
+        with open(fp, "r") as qfile:
+            name = os.path.splitext(os.path.basename(fp))[0]
+            queries[name] = qfile.read()

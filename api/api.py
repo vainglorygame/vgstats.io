@@ -24,6 +24,7 @@ async def recrawl():
     api = crawler.Crawler()
 
     # TODO: insert API version (force update if changed)
+    # TODO: create database indices
     # get or put when the last crawl was executed
     try:
         last_match_update = await db.meta("last_match_update")
@@ -50,7 +51,7 @@ async def recrawl_soon():
 
 @route("/matches")
 async def api_matches(request):
-    data = (await db.select(queries.matches))[0]["data"]
+    data = (await db.select(queries.queries["recent-matches"]))[0]["data"]
     return aiohttp.web.Response(text=str(data))
 
 @route("/status")
@@ -61,6 +62,7 @@ async def api_status(_):
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(db.connect("postgres://vgstats@localhost/vgstats"))
+loop.run_until_complete(queries.load_queries("queries/"))
 loop.create_task(recrawl())
 app = aiohttp.web.Application(loop=loop)
 route.add_to_router(app.router)
