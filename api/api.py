@@ -7,7 +7,6 @@ import sys
 import json
 import aiohttp.web
 import aiohttp_route_decorator
-import aiohttp_wsgi
 
 import database
 import crawler
