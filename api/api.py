@@ -14,7 +14,7 @@ import crawler
 import queries
 
 
-route = aiohttp_route_decorator.RouteCollector()
+route = aiohttp_route_decorator.RouteCollector(prefix="/api")
 db = database.Database()
 
 
