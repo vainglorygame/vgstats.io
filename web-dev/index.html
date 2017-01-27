@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>VGStats.io data preview</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0" />
+        <meta charset="utf-8">
+        <link rel="stylesheet" href="static/materialize.min.css">
+    </head>
+    <body>
+        <header class="navbar-fixed">
+            <nav class="blue lighten-1">
+                <div class="nav-wrapper">
+                    <a href="/" class="brand-logo center">VGStats</a>
+                </div>
+            </nav>
+        </header>
+
+        <main class="section container">
+            <noscript><p class="center section">This site requires JavaScript.</p></noscript>
+            <div id="winrates" class="section">
+                <p class="center" style="font-size: 2em;">Hero winrates</p>
+            </div>
+            <script type="text/javascript">
+                document.addEventListener("DOMContentLoaded", function() {
+                    var width = Math.min($(window).width()*0.9, 400),
+                        height = width;
+                    var svg = d3.select("#winrates").append("svg")
+                        .attr("width", width)
+                        .attr("height", height);
+                    var pack = d3.pack()
+                        .size([width, height]);
+
+                    var defs = svg.append("defs");
+                    for (var uglyhero in pretty_heroes) {
+                        var hero = pretty_heroes[uglyhero];
+                        defs.append("pattern")
+                            .attr("patternContentUnits", "objectBoundingBox")
+                            .attr("width", "100%")
+                            .attr("height", "100%")
+                            .attr("id", hero)
+                            .append("image")
+                                .attr("xlink:href", "static/images/heroes/" + hero.toLowerCase() + ".png")
+                                .attr("width", 1)
+                                .attr("height", 1)
+                        ;
+                    }
+
+                    d3.json("/api/winrates", function(heroes) {
+                        var root = d3.hierarchy({children: heroes})
+                            .sum(function (d) { return d.winrate-0.4; })
+                            .each(function (d) {
+                                d.id = pretty_heroes[d.data.actor];
+                            });
+                        var node = svg.selectAll(".node")
+                            .data(pack(root).leaves())
+                            .enter()
+                                .append("g")
+                                .attr("class", "node")
+                                .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+                        node.append("circle")
+                            .attr("id", function(d) { return d.id; })
+                            .attr("r", function(d) { return d.r; })
+                            .style("fill", function(d) { return "url(#" + d.id + ")"; });
+                    });
+                });
+
+                pretty_heroes = {
+                    "*Adagio*": "Adagio",
+                    "*Alpha*": "Alpha",
+                    "*Ardan*": "Ardan",
+                    "*Baron*": "Baron",
+                    "*Blackfeather*": "Blackfeather",
+                    "*Catherine*": "Catherine",
+                    "*Celeste*": "Celeste",
+                    "*Flicker*": "Flicker",
+                    "*Fortress*": "Fortress",
+                    "*Glaive*": "Glaive",
+                    "*Gwen*": "Gwen",
+                    "*Hero009*": "Krul",
+                    "*Hero010*": "Skaarf",
+                    "*Hero016*": "Rona",
+                    "*Idris*": "Idris",
+                    "*Joule*": "Joule",
+                    "*Kestrel*": "Kestrel",
+                    "*Koshka*": "Koshka",
+                    "*Lance*": "Lance",
+                    "*Lyra*": "Lyra",
+                    "*Ozo*": "Ozo",
+                    "*Petal*": "Petal",
+                    "*Phinn*": "Phinn",
+                    "*Reim*": "Reim",
+                    "*Ringo*": "Ringo",
+                    "*Samuel*": "Samuel",
+                    "*SAW*": "SAW",
+                    "*Sayoc*": "Taka",
+                    "*Skye*": "Skye",
+                    "*Vox*": "Vox"
+                }
+            </script>
+        </main>
+
+        <footer class="page-footer blue lighten-1">
+            <div class="footer-copyright">
+                <div class="container">
+                    built with &lt;3 by shutterfly
+                </div>
+            </div>
+        </footer>
+
+        <script type="text/javascript" src="static/jquery-3.1.1.min.js"></script>
+        <script defer type="text/javascript" src="static/materialize.min.js"></script>
+        <script defer type="text/javascript" src="static/d3.v4.min.js"></script>
+    </body>
+</html>
