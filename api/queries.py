@@ -15,6 +15,6 @@ async def load_queries(path):
     # load from queries/
     queryfiles = glob.glob(path + "/*.sql")
     for fp in queryfiles:
-        with open(fp, "r") as qfile:
+        with open(fp, "r", encoding="utf-8-sig") as qfile:
             name = os.path.splitext(os.path.basename(fp))[0]
             queries[name] = qfile.read()
