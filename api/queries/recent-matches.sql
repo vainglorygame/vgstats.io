@@ -1,7 +1,7 @@
-SELECT ARRAY_TO_JSON(ARRAY(
+﻿SELECT ARRAY_TO_JSON(ARRAY(
 SELECT
   JSONB_BUILD_OBJECT(
-  'id', match.data->>'id',
+  'id', (match.data->'attributes'->>'shardId') || (match.data->>'id'),
   'date', match.data->'attributes'->>'createdAt',
   'duration', CAST(
     match.data->'attributes'->>'duration'
@@ -27,4 +27,4 @@ SELECT
 )
 FROM match
 ORDER BY match.data->'attributes'->>'createdAt' DESC
-)) AS data
+)) AS data;

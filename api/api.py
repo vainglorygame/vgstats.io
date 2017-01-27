@@ -54,6 +54,11 @@ async def api_matches(request):
     data = (await db.select(queries.queries["recent-matches"]))[0]["data"]
     return aiohttp.web.Response(text=str(data))
 
+@route("/winrates")
+async def api_winrates(request):
+    data = (await db.select(queries.queries["hero-winrates"]))[0]["data"]
+    return aiohttp.web.Response(text=str(data))
+
 @route("/status")
 async def api_status(_):
     resp = json.dumps({"version": "0.1.0"})
