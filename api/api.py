@@ -25,19 +25,17 @@ async def recrawl():
     # TODO: insert API version (force update if changed)
     # TODO: create database indices
     # get or put when the last crawl was executed
-    try:
-        last_match_update = await db.meta("last_match_update")
-    except KeyError:
-        last_match_update = datetime.datetime(1, 1, 1).isoformat()
-        await db.meta("last_match_update", last_match_update)
-    nowiso = datetime.datetime.now().isoformat()
+    last_match_update = (await db.select(
+        "SELECT data->'attributes'->>'createdAt' AS created FROM match ORDER BY data->'attributes'->>'createdAt' DESC LIMIT 1")
+    )[0]["created"]
 
     # crawl and upsert
     matches = await api.matches_since(last_match_update)
     if len(matches) > 0:
         print("got a lot new data items: " + str(len(matches)))
+    else:
+        print("got no new matches.")
     await db.upsert(matches, True)
-    await db.meta("last_match_update", nowiso)
 
     asyncio.ensure_future(recrawl_soon())
 

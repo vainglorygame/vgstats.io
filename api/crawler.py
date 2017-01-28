@@ -65,6 +65,7 @@ class Crawler(object):
             while True:
                 params["page[offset]"] += params["page[limit]"]
                 try:
+                    print("asking for more matches…")
                     res = await self._req(session,
                                           "shards/" + region + "/matches",
                                           params)
@@ -85,6 +86,4 @@ class Crawler(object):
         :return: Processed API response
         :rtype: list of dict
         """
-        date = ".".join(date.split(".")[:-1])  # remove microseconds
-        date = date + "Z"
         return await self.matches(region, {"filter[createdAt-start]": date})
