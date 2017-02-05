@@ -87,14 +87,15 @@ class Database(object):
             async with conn.transaction():
                 await conn.execute(query, args)
 
-    async def select(self, query):
+    async def select(self, query, *args):
         """Returns the result of an SQL query.
 
         :param query: SQL query to execute.
         :type query: str
+        :param args: Query arguments.
         :return: List of results.
         :rtype: list of dict
         """
         async with self._pool.acquire() as conn:
             async with conn.transaction():
-                return await conn.fetch(query)
+                return await conn.fetch(query, *args)
