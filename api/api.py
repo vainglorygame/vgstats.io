@@ -38,7 +38,7 @@ async def recrawl():
                 """)
             )[0]["created"]
         except IndexError:
-            last_match_update = "2017-01-01T01:01:01Z"
+            last_match_update = "2017-02-05T01:01:01Z"
 
         matches = await api.matches_since(last_match_update, region=region)
         if len(matches) > 0:
