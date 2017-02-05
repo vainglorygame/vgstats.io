@@ -7,9 +7,14 @@ asyncpg==0.8.4
 cchardet==1.1.2
 chardet==2.3.0
 multidict==2.1.4
+numpy==1.12.0
 packaging==16.8
+pandas==0.19.2
+protobuf==3.1.0.post1
+pycares==2.1.1
 pyparsing==2.1.10
 python-dateutil==2.6.0
 pytz==2016.10
 six==1.10.0
+tensorflow-gpu==0.12.1
 yarl==0.8.1
