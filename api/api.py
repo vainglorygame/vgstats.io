@@ -37,7 +37,7 @@ async def recrawl():
                 ORDER BY data->'attributes'->>'createdAt' DESC LIMIT 1
                 """)
             )[0]["created"]
-        except IndexError:
+        except:
             last_match_update = "2017-02-05T01:01:01Z"
 
         matches = await api.matches_since(last_match_update, region=region)
@@ -74,9 +74,9 @@ async def api_status(_):
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(db.connect("postgres://vgstats@localhost/vgstats"))
-loop.run_until_complete(queries.load_queries("queries/"))
+loop.run_until_complete(queries.load_queries("api/queries/"))
 loop.create_task(recrawl())
 app = aiohttp.web.Application(loop=loop)
 route.add_to_router(app.router)
-app.router.add_static("/web", "../web-dev")  # development web frontend
+app.router.add_static("/web", "web-dev")  # development web frontend
 aiohttp.web.run_app(app)
