@@ -1,4 +1,20 @@
-FROM alpine:3.5
+FROM nginx:alpine
+
+MAINTAINER Kapil Viren Ahuja <k.v.ahuja@gmail.com>
+
+# setup nginx (this is a container we should replace later)
+
+ADD nginx.conf /etc/nginx/
+
+RUN apk update \
+    && apk upgrade \
+    && apk add --no-cache bash \
+    && adduser -D -H -u 1000 -s /bin/bash www-data \
+    && rm /etc/nginx/conf.d/default.conf
+
+CMD ["nginx"]
+
+EXPOSE 80 443
 
 # mount application to /app
 
@@ -38,11 +54,9 @@ VOLUME /var/lib/postgresql/data
 
 COPY docker-entrypoint.sh /
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
-
 #---------
 # main app
 
 ENV POSTGRES_USER vgstats
 EXPOSE 5432 8080
-CMD ["sh", "-c", "pg_ctl start && python3 api/api.py"]
+#CMD ["sh", "-c", "pg_ctl start && python3 api/api.py"]

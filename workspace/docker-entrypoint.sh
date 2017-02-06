@@ -59,3 +59,5 @@ if [ -z "$(ls -A "$PGDATA")" ]; then
 fi
 
 exec gosu postgres "$@"
+
+while true; do sleep 1000; done
