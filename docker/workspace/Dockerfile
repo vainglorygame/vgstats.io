@@ -14,8 +14,6 @@ RUN apk update \
 
 CMD ["nginx"]
 
-EXPOSE 80 443
-
 # mount application to /app
 
 #-------------------
@@ -57,6 +55,10 @@ COPY docker-entrypoint.sh /
 #---------
 # main app
 
+# ports setup
+EXPOSE 80 443 8080
+
 ENV POSTGRES_USER vgstats
 EXPOSE 5432 8080
-#CMD ["sh", "-c", "pg_ctl start && python3 api/api.py"]
+WORKDIR /apps
+# CMD ["sh", "-c", "pg_ctl start && python3 api/api.py"]

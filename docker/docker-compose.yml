@@ -1,0 +1,34 @@
+version: '2'
+
+services:
+
+### Applications Code Container #############################
+    applications:
+        image: tianon/true
+        volumes:
+            - ./../api:/apps/api
+            - ../cli:/apps/cli
+            - ../web:/apps/web
+            - ../webdev:/apps/web-dev
+
+### Python Container
+    python:
+        build: ./python
+        volumes_from:
+            - applications
+        ports:
+          - "8080:8080"
+        links:
+          - postgres
+
+### PostgreSQL Container ####################################
+    postgres:
+        build: ./postgres
+        volumes:
+            - /var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_DB: vgstats
+            POSTGRES_USER: vgstats
+            POSTGRES_PASSWORD: vgstats
