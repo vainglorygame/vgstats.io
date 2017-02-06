@@ -25,11 +25,25 @@ services:
 
 ### PostgreSQL Container ####################################
     postgres:
-        build: ./postgres
-        volumes_from:
-            - applications
-        ports:
-            - "5432:5432"
-        environment:
-            POSTGRES_DB: vgstats
-            POSTGRES_USER: vgstats
+      container_name: postgres
+      build: ./postgres
+      volumes_from:
+        - applications
+      ports:
+        - "5432:5432"
+      environment:
+        POSTGRES_DB: vgstats
+        POSTGRES_USER: vgstats
+
+### phpPgAdmin Container ####################################
+    phpPgAdmin:
+      container_name: phppgadmin
+      image: fizix/docker-pgadmin:php-fpm-environment
+      environment:
+        - POSTGRESQL_HOST=postgres
+        - POSTGRESQL_PORT=5432
+        - POSTGRESQL_DEFAULT_DB=postgres
+      ports:
+        - 80:80
+      links:
+        - postgres
