@@ -73,8 +73,8 @@ async def api_status(_):
 
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(db.connect("postgres://vgstats:vgstats@docker_postgres_1/vgstats"))
-loop.run_until_complete(queries.load_queries("api/queries/"))
+#loop.run_until_complete(db.connect("postgres://vgstats:mysecretpassword@docker_postgres_1/vgstats"))
+#loop.run_until_complete(queries.load_queries("api/queries/"))
 loop.create_task(recrawl())
 app = aiohttp.web.Application(loop=loop)
 route.add_to_router(app.router)

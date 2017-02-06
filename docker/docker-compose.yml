@@ -8,8 +8,10 @@ services:
         volumes:
             - ./../api:/apps/api
             - ../cli:/apps/cli
-            - ../web:/apps/web
-            - ../webdev:/apps/web-dev
+            - ../web:/code/web
+            - ../web-dev:/code/web-dev
+            - ../webdev:/code/web-dev
+            - ../volumes/postgresql/data:/var/lib/postgresql/data
 
 ### Python Container
     python:
@@ -24,11 +26,10 @@ services:
 ### PostgreSQL Container ####################################
     postgres:
         build: ./postgres
-        volumes:
-            - /var/lib/postgresql/data
+        volumes_from:
+            - applications
         ports:
             - "5432:5432"
         environment:
             POSTGRES_DB: vgstats
             POSTGRES_USER: vgstats
-            POSTGRES_PASSWORD: vgstats
