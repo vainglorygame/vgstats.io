@@ -17,21 +17,17 @@ route = aiohttp_route_decorator.RouteCollector(prefix="/api")
 db = database.Database()
 
 
-async def recrawl():
-    """Gets the latest matches and inserts them into the database."""
-    print("getting recent matches")
+# TODO use logging module instead of print
+async def crawl_region(region):
+    """Gets some matches from a region and inserts them
+       until the DB is up to date."""
     api = crawler.Crawler()
 
-    # TODO: insert API version (force update if changed)
-    # TODO: create database indices
-    # get or put when the last crawl was executed
-
-    # crawl and upsert
-    for region in ["na", "eu"]:
+    while True:
         try:
             last_match_update = (await db.select(
                 """
-                SELECT data->'attributes'->>'createdAt' AS created 
+                SELECT data->'attributes'->>'createdAt' AS created
                 FROM match
                 WHERE data->'attributes'->>'shardId'='""" + region + """'
                 ORDER BY data->'attributes'->>'createdAt' DESC LIMIT 1
@@ -40,19 +36,35 @@ async def recrawl():
         except:
             last_match_update = "2017-02-05T01:01:01Z"
 
-        matches = await api.matches_since(last_match_update, region=region)
+        print(region + " fetching matches after " + last_match_update)
+
+        # wait for http requests
+        matches = await api.matches_since(last_match_update,
+                                          region=region,
+                                          params={"page[limit]": 50})
         if len(matches) > 0:
-            print(region + " got a lot new data items: " + str(len(matches)))
+            print(region + " got new data items: " + str(len(matches)))
         else:
             print(region + " got no new matches.")
+            return
+        # insert asynchronously in the background
         await db.upsert(matches, True)
 
-    asyncio.ensure_future(recrawl_soon())
 
-async def recrawl_soon():
-    """Calls `recrawl` after 60 seconds."""
-    print("crawler sleeping, Zzzzzz…")
-    await asyncio.sleep(60)
+async def recrawl():
+    """Gets the latest matches from all regions every 5 minutes."""
+    print("getting recent matches")
+
+    # TODO: insert API version (force update if changed)
+    # TODO: create database indices
+    # get or put when the last crawl was executed
+
+    # crawl and upsert
+    for region in ["na", "eu"]:
+        # fire workers
+        asyncio.ensure_future(crawl_region(region))
+
+    await asyncio.sleep(300)
     asyncio.ensure_future(recrawl())
 
 

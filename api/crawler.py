@@ -55,10 +55,14 @@ class Crawler(object):
         :return: Processed API response
         :rtype: list of dict
         """
+        forever = False  # do not fetch until exhausted
         if params is None:
             params = dict()
-        params["page[limit]"] = self._pagelimit
-        params["page[offset]"] = 0
+        if "page[limit]" not in params:
+            forever = True  # no limit specified, fetch all we can
+            params["page[limit]"] = self._pagelimit
+        if "page[offset]" not in params:
+            params["page[offset]"] = 0
 
         data = []
         async with aiohttp.ClientSession() as session:
@@ -74,16 +78,24 @@ class Crawler(object):
 
                 data += res["data"] + res["included"]
 
+                if not forever:
+                    break  # stop after one iteration
+
         return data
 
-    async def matches_since(self, date, region="na"):
+    async def matches_since(self, date, region="na", params=None):
         """Queries the API for new matches since the given date.
 
         :param region: see `matches`
         :type region: str
         :param date: Start date in ISO8601 format.
         :type date: str
+        :param params: (optional) Additional filters.
+        :type params: dict
         :return: Processed API response
         :rtype: list of dict
         """
-        return await self.matches(region, {"filter[createdAt-start]": date})
+        if params is None:
+            params = dict()
+        params["filter[createdAt-start]"] = date
+        return await self.matches(region, params)
